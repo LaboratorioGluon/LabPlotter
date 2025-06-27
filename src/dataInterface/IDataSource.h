@@ -31,6 +31,6 @@ signals:
 
 private:
     QString m_id;
-}
+};
 
 #endif // IDATASOURCE_H__

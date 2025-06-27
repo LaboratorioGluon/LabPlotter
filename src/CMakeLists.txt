@@ -8,11 +8,17 @@ set(APP_SOURCES
     main.cpp
     mainWindow.cpp
     dataInterface/SerialPortSource.cpp
+    dataInterface/CharSeparatedParser.cpp
+    dataInterface/IDataParser.cpp
+    DataManager.cpp
 )
 
 set(APP_HEADERS
     mainWindow.h
+    DataManager.h
     dataInterface/IDataSource.h
+    dataInterface/DataPoint.h
+    dataInterface/CharSeparatedParser.h
     dataInterface/SerialPortSource.h
 )
 
@@ -41,7 +47,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt6::Gui
     Qt6::Core
     QCustomPlot
-    SerialPort)
+    Qt6::SerialPort)
 
 # Opcional: Propiedades específicas para este ejecutable (si quieres algo diferente de lo global)
 # set_target_properties(${PROJECT_NAME} PROPERTIES
