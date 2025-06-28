@@ -1,6 +1,6 @@
 #include "mainWindow.h"
-#include "ui_mainWindow.h" // Se genera automáticamente por UIC
-
+#include "ui/ui_mainWindow.h" 
+#include "widgets/connectionPanel.h"
 #include "dataInterface/SerialPortSource.h"
 #include "dataInterface/CharSeparatedParser.h"
 
@@ -13,38 +13,98 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
     
     m_dataPoints.clear();
+    m_seriesToUI.clear();
+
+    QPushButton*  buttonExtra = new QPushButton("Extra Button", this);
+    ui->horizontalLayout_2->addWidget(buttonExtra);
 
     setupPlot();
 
     connect(m_sourceManager, &SourceManager::newDataAvailable, this, &MainWindow::newData);
 
-    SerialPortSource *serialSource = new SerialPortSource("Serial1", "/dev/ttyUSB0", m_sourceManager);
+    /*SerialPortSource *serialSource = new SerialPortSource("Serial1", "/dev/ttyUSB0", m_sourceManager);
     m_sourceManager->addSource(serialSource);
     m_sourceManager->registerParser("Serial1", new CharSeparatedParser(this, ','));
-    m_sourceManager->startAllSources();
+    m_sourceManager->startAllSources();*/
 
     m_plotRefreshTimer = new QTimer(this);
     m_plotRefreshTimer->setInterval(50);
     connect(m_plotRefreshTimer, &QTimer::timeout, this, &MainWindow::refreshPlot);
     m_plotRefreshTimer->start();
 
-    connect(m_dataManager, &DataManager::serieAdded, this, [this](const QString &name) {
+    connect(m_dataManager, &DataManager::serieAdded, this, [this](const int index) {
         QCustomPlot *cp = ui->customPlot;
+        QString name = m_dataManager->getSerieName(index);
         int graphIndex = cp->graphCount();
         cp->addGraph();
         QPen pen;
         pen.setWidth(2);
-        pen.setColor(m_dataManager->getSerieColor(name));
+        pen.setColor(m_dataManager->getSerieColor(index));
         cp->graph(graphIndex)->setPen(pen);
         cp->graph(graphIndex)->setName(name);
-        cp->graph(graphIndex)->setVisible(m_dataManager->isSerieVisible(name));
+        cp->graph(graphIndex)->setVisible(m_dataManager->isSerieVisible(index));
 
         QTreeWidgetItem *item = new QTreeWidgetItem(ui->signalList);
         item->setText(0, name);
-        item->setForeground(0, QBrush(m_dataManager->getSerieColor(name)));
-        item->setCheckState(0, m_dataManager->isSerieVisible(name) ? Qt::Checked : Qt::Unchecked);
+        item->setForeground(0, QBrush(m_dataManager->getSerieColor(index)));
+        item->setCheckState(0, m_dataManager->isSerieVisible(index) ? Qt::Checked : Qt::Unchecked);
         item->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsUserCheckable | Qt::ItemIsEditable);
         connect(ui->signalList, &QTreeWidget::itemChanged, this, &MainWindow::signalListItemChanged);
+        m_seriesToUI.insert(index, {graphIndex, item});
+    });
+
+    connect(m_dataManager, &DataManager::serieNameChanged, this, [this](const int index, const QString &name) {
+        QCustomPlot *cp = ui->customPlot;
+        if (index < cp->graphCount()) {
+            cp->graph(index)->setName(name);
+        }
+        if (m_seriesToUI.contains(index)) {
+            m_seriesToUI[index].treeItem->setText(0, name);
+        }
+        cp->replot();
+    });
+
+    connect(ui->connectionPanel, &ConnectionPanel::serialPortConnectChange, this, [this](bool connect, const QString &portName, int baudRate) {
+        if (connect) {
+            SerialPortSource *serialSource = new SerialPortSource("Serial1", portName, m_sourceManager);
+            m_sourceManager->addSource(serialSource);
+            m_sourceManager->registerParser("Serial1", new CharSeparatedParser(this, ','));
+            if ( m_sourceManager->startSource("Serial1") )
+            {
+                ui->connectionPanel->setSerialPanel(true);
+            }
+        }
+        else
+        {
+            // Stop the source if disconnecting
+            m_sourceManager->stopSource("Serial1");
+            m_sourceManager->removeSource("Serial1");
+            m_sourceManager->registerParser("Serial1", nullptr);
+            ui->connectionPanel->setSerialPanel(false);
+        }
+       
+    });
+
+    connect(ui->testButton, &QPushButton::clicked, this, [this]() {
+        // Placeholder for test button functionality
+        /*if (ui->tabWidget->isVisible()) {
+            ui->tabWidget->hide();
+            ui->testButton->setText(tr("Show Tabs"));
+            ui->testButton->setStyleSheet("background-color: red; color: black;");
+        } else {
+            ui->tabWidget->show();
+            ui->testButton->setText(tr("Hide Tabs"));
+            ui->testButton->setStyleSheet("background-color: green; color: black;");
+        }*/
+        if( ui->stackConfiguracion->isVisible() ) {
+            ui->stackConfiguracion->hide();
+            ui->testButton->setChecked(false);
+            //ui->testButton->setStyleSheet("background-color: green; color: black;");
+        } else {
+            ui->stackConfiguracion->show();
+            ui->testButton->setChecked(true);
+            //ui->testButton->setStyleSheet("background-color: red; color: black;");
+        }
     });
 
 }
@@ -106,8 +166,18 @@ void MainWindow::newData(const DataPoint& data, const QString& sourceId)
 
 void MainWindow::signalListItemChanged(QTreeWidgetItem *item, int column)
 {
-    if (item && column == 0)
+    //qDebug() << "Signal list item changed:" << item->text(0) << "Column:" << column;
+    
+    if (item)
     {
+        for( int i = 0; i < m_seriesToUI.size(); ++i) {
+            if (m_seriesToUI[i].treeItem == item) {
+                // Update the series visibility in DataManager
+                m_dataManager->setSerieVisibility(m_seriesToUI[i].graphIndex, item->checkState(0) == Qt::Checked);
+                m_dataManager->setSerieName(m_seriesToUI[i].graphIndex, item->text(0));
+                break;
+            }
+        }
         // Check if the item is checked or unchecked
         bool isChecked = (item->checkState(0) == Qt::Checked);
         QString graphName = item->text(0);
@@ -145,21 +215,6 @@ void MainWindow::refreshPlot()
             // Ensure the graph exists for the current index
             if (cp->graphCount() <= i) {
                 m_dataManager->addSerie(QString("Graph %1").arg(i + 1), m_plotColors[i], true);
-                /*cp->addGraph();
-                QPen pen;
-                pen.setWidth(2);
-                pen.setStyle(Qt::SolidLine);
-                //pen.setColor(m_plotColors[i]); // set color to blue
-                pen.setColor(m_plotColors[i]); // set color to blue
-                cp->graph(i)->setPen(pen); // set the graph
-                cp->graph(i)->setName(QString("Graph %1").arg(i + 1));
-                QTreeWidgetItem *item = new QTreeWidgetItem(ui->signalList);
-                item->setText(0, QString("Graph %1").arg(i + 1));                
-                item->setForeground(0, QBrush(m_plotColors[i]));
-                item->setCheckState(0, Qt::Checked);
-                item->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsUserCheckable | Qt::ItemIsEditable);
-                ui->signalList->addTopLevelItem( item);
-                connect(ui->signalList, &QTreeWidget::itemChanged, this, &MainWindow::signalListItemChanged);*/
             }
             cp->graph(i)->addData(datacount, dp.values[i]);
         }

@@ -9,6 +9,7 @@
 #include "dataInterface/DataPoint.h"
 
 struct SerieInfo{
+    QString name;
     QColor color;
     QVector<double> xData; // Datos del eje X
     QVector<double> yData; // Datos del eje Y
@@ -23,39 +24,41 @@ public:
     explicit DataManager(QObject *parent = nullptr) : QObject(parent) {}
     ~DataManager() override = default;
 
-    void addSerie(const QString &name, const QColor &initialColor, bool initialVisible);
-    void removeSerie(const QString& name);    
+    int addSerie(const QString &name, const QColor &initialColor, bool initialVisible);
+    //int getSerieIndex(const QString& name) const;
+    //void removeSerie(const QString& name);    
+    void removeSerie(const int index) { m_seriesInfo.removeAt(index); }    
 
-    void addDataToSerie(const QString& name, double x, double y);
+    void addDataToSerie(const int index, double x, double y);
     //void addDataPoint(const DataPoint& dataPoint);
-    //void addDataTimeToSerie(const QString& name, double time, double value);
+    //void addDataTimeToSerie(const int index, double time, double value);
     
 
-    void setSerieColor(const QString& name, const QColor& color);
-    void setSerieVisibility(const QString& name, bool visible);
-    void clearSerie(const QString& name);
-    void clearAllSeries();
+    void setSerieColor(const int index, const QColor& color);
+    void setSerieVisibility(const int index, bool visible);
+    void setSerieName(const int index, const QString& name);
 
-    QColor getSerieColor(const QString& name) const { return m_seriesInfo.value(name).color; };
-    bool isSerieVisible(const QString& name) const { return m_seriesInfo.value(name).visible; };
-    QVector<double> getSerieXData(const QString& name) const { return m_seriesInfo.value(name).xData; };
-    QVector<double> getSerieYData(const QString& name) const { return m_seriesInfo.value(name).yData; };
+
+    QColor getSerieColor(const int index) const { return m_seriesInfo[index].color; };
+    bool isSerieVisible(const int index) const { return m_seriesInfo[index].visible; };
+    QString getSerieName(const int index) const { return m_seriesInfo[index].name; };
+    QVector<double> getSerieXData(const int index) const { return m_seriesInfo[index].xData; };
+    QVector<double> getSerieYData(const int index) const { return m_seriesInfo[index].yData; };
 
 signals:
-    void serieAdded(const QString& name);
-    void serieRemoved(const QString& name);
+    void serieAdded(const int index);
+    void serieRemoved(const int index);
 
-    void serieDataChanged(const QString& name);
+    void serieDataChanged(const int index);
+    void serieNameChanged(const int index, const QString& name);
 
-    void serieColorChanged(const QString& name, const QColor& color);
-    void serieVisibilityChanged(const QString& name, bool visible);
-    void serieCleared(const QString& name);
-    void allSeriesCleared();
+    void serieColorChanged(const int index, const QColor& color);
+    void serieVisibilityChanged(const int index, bool visible);
+
 
 
 private:
-    QHash<QString,SerieInfo> m_seriesInfo; // Almacena información de las series para el plot
-    double m_timestamp = 0.0;
+    QVector<SerieInfo> m_seriesInfo; // Almacena información de las series para el plot
 };
 
 #endif //DATAMANAGER_H__

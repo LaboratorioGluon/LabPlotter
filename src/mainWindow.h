@@ -6,6 +6,7 @@
 #include "DataManager.h"
 #include "dataInterface/DataPoint.h"
 #include <QTreeWidget>
+#include <QMap>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -39,6 +40,13 @@ private:
     QTimer *m_plotRefreshTimer;
 
     QVector<DataPoint> m_dataPoints; // Almacena los puntos de datos para el plot
+
+    struct SerieToUI{
+        int graphIndex;
+        QTreeWidgetItem *treeItem;
+    };
+
+    QMap<int, SerieToUI> m_seriesToUI; 
 
 
     QColor m_plotColors[14] = 

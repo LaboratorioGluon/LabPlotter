@@ -1,9 +1,10 @@
 # mi_proyecto/src/CMakeLists.txt
 
-# No necesitas project(), cmake_minimum_required(), find_package(), etc. aquí.
-# Esas configuraciones se heredan del CMakeLists.txt padre.
+# Aquí NO necesitas project(), cmake_minimum_required(), find_package(), etc.
+# Se heredan del CMakeLists.txt padre.
 
-# Define los archivos fuente, cabecera y UI específicos de esta aplicación
+# Definir las rutas de las carpetas de origen relativas a src/
+# Los archivos fuente (.cpp)
 set(APP_SOURCES
     main.cpp
     mainWindow.cpp
@@ -12,8 +13,11 @@ set(APP_SOURCES
     dataInterface/SerialPortSource.cpp
     dataInterface/CharSeparatedParser.cpp
     dataInterface/IDataParser.cpp
+    widgets/connectionPanel.cpp
+    widgets/serialPortConfig.cpp
 )
 
+# Los archivos de cabecera (.h)
 set(APP_HEADERS
     mainWindow.h
     SourceManager.h
@@ -22,36 +26,48 @@ set(APP_HEADERS
     dataInterface/DataPoint.h
     dataInterface/CharSeparatedParser.h
     dataInterface/SerialPortSource.h
+    widgets/connectionPanel.h
+    widgets/serialPortConfig.h
 )
 
 set(APP_FORMS
-    mainWindow.ui
+    ui/mainWindow.ui
+    ui/connectionPanel.ui
+    ui/serialPortConfig.ui
 )
 
-# Si los recursos son específicos de esta aplicación, defínelos aquí.
-# De lo contrario, déjalos en el CMakeLists.txt raíz y enlázalos.
+# Los archivos de recursos .qrc
 set(APP_RESOURCES
-    ../resources/app_resources.qrc # Ruta relativa al CMakeLists.txt de este directorio
+    ../resources/app_resources.qrc # Ruta relativa a src/
 )
 
-# Crea el ejecutable para esta aplicación
-add_executable(${PROJECT_NAME} # Puedes usar ${PROJECT_NAME} o un nombre específico como "MyDesktopApp"
+
+qt_add_executable(${PROJECT_NAME}
     ${APP_SOURCES}
     ${APP_HEADERS}
     ${APP_FORMS}
     ${APP_RESOURCES}
 )
 
-# Enlaza las librerías de Qt necesarias a este ejecutable.
-# Las librerías de Qt ya están disponibles porque fueron encontradas en el CMakeLists.txt padre.
-target_link_libraries(${PROJECT_NAME} PRIVATE 
+target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt6::Widgets
     Qt6::Gui
     Qt6::Core
+    Qt6::SerialPort
     QCustomPlot
-    Qt6::SerialPort)
+)
 
-# Opcional: Propiedades específicas para este ejecutable (si quieres algo diferente de lo global)
+
+target_include_directories(${PROJECT_NAME} PRIVATE
+    $<TARGET_PROPERTY:${PROJECT_NAME},AUTOGEN_INCLUDE_DIR> # <--- ¡Esta es la forma más robusta!
+
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src                     
+    ${CMAKE_SOURCE_DIR}/src/dataInterface       
+    ${CMAKE_SOURCE_DIR}/src/widgets            
+)
+
+# Opcional: Propiedades específicas para este ejecutable
 # set_target_properties(${PROJECT_NAME} PROPERTIES
 #     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/bin/my_app_folder"
 # )

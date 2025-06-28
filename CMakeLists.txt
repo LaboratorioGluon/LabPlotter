@@ -4,6 +4,16 @@ cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
 # Define el nombre de tu proyecto
 project(LabPlotter VERSION 1.0.0 LANGUAGES CXX)
 
+
+# Configuración de C++
+# Establece el estándar C++ (por ejemplo, C++17)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+set(CMAKE_AUTOUIC ON) 
+set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOMOC ON)
+
 # Habilita los módulos de Qt necesarios
 # Usa find_package para buscar los módulos de Qt.
 # REQUIRED significa que la compilación fallará si no se encuentran.
@@ -16,13 +26,8 @@ find_package(Qt6 COMPONENTS
     SerialPort
     REQUIRED)
 
-# Configuración de C++
-# Establece el estándar C++ (por ejemplo, C++17)
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_AUTOUIC ON) # Habilita la compilación automática de archivos .ui (uic)
-set(CMAKE_AUTORCC ON) # Habilita la compilación automática de archivos .qrc (rcc)
-set(CMAKE_AUTOMOC ON) # Habilita la compilación automática de archivos .h con Q_OBJECT (moc)
+qt_standard_project_setup()
+
 
 add_subdirectory(src)
 add_subdirectory(libs)

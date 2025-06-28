@@ -17,9 +17,14 @@ public:
     ~SourceManager();
 
     void addSource(IDataSource* source);
+    void removeSource(const QString& sourceId);
+    
     void registerParser(const QString& sourceIdOrFormatType, IDataParser* parser);
 
-    void startAllSources();
+    bool startSource(const QString& sourceId);
+    void stopSource(const QString& sourceId);
+
+    bool startAllSources();
     void stopAllSources();
 
 signals:
