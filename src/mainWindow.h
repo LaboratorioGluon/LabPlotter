@@ -2,8 +2,10 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include "SourceManager.h"
 #include "DataManager.h"
 #include "dataInterface/DataPoint.h"
+#include <QTreeWidget>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -17,9 +19,8 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
-
     /**** PLOT ****/
-    void setupPlot();
+    void setupPlot();    
 
 private slots:
     // Slot to update the plot with new data
@@ -27,9 +28,13 @@ private slots:
 
     void refreshPlot();
 
+    void signalListItemChanged(QTreeWidgetItem *item, int column);
+
+
 private:
     Ui::MainWindow *ui;
 
+    SourceManager *m_sourceManager;
     DataManager *m_dataManager;
     QTimer *m_plotRefreshTimer;
 

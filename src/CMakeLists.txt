@@ -7,14 +7,16 @@
 set(APP_SOURCES
     main.cpp
     mainWindow.cpp
+    DataManager.cpp
+    SourceManager.cpp
     dataInterface/SerialPortSource.cpp
     dataInterface/CharSeparatedParser.cpp
     dataInterface/IDataParser.cpp
-    DataManager.cpp
 )
 
 set(APP_HEADERS
     mainWindow.h
+    SourceManager.h
     DataManager.h
     dataInterface/IDataSource.h
     dataInterface/DataPoint.h

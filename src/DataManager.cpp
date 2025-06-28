@@ -1,75 +1,79 @@
-// DataManager.cpp
+// DataManager.cpp (Parte de la implementación)
 #include "DataManager.h"
 #include <QDebug>
 
-DataManager::DataManager(QObject *parent) : QObject(parent)
-{
-}
+// Constructor ya definido en .h si es solo un initializer list
 
-DataManager::~DataManager()
-{
-    qDeleteAll(m_dataSources);
-    m_dataSources.clear();
-
-    qDeleteAll(m_parsers);
-    m_parsers.clear();
-}
-
-void DataManager::addSource(IDataSource* source)
-{
-    if (!source) return;
-    connect(source, &IDataSource::dataReceived, this, &DataManager::onSourceDataReceived);
-    m_dataSources.append(source);
-    qDebug() << "Added data source:" << source->id();
-}
-
-void DataManager::registerParser(const QString& sourceIdOrFormatType, IDataParser* parser)
-{
-    if (!parser) return;
-    if (m_parsers.contains(sourceIdOrFormatType)) {
-        qWarning() << "Parser already registered for" << sourceIdOrFormatType << ". Overwriting.";
-        delete m_parsers.value(sourceIdOrFormatType);
-    }
-    m_parsers.insert(sourceIdOrFormatType, parser);
-    qDebug() << "Registered parser for" << sourceIdOrFormatType << ":" << parser->formatType();
-}
-
-void DataManager::startAllSources()
-{
-    for (IDataSource* source : m_dataSources) {
-        source->start();
-        // Llamar a reset() en el parser asociado a esta fuente al iniciar
-        IDataParser* parser = m_parsers.value(source->id());
-        if (parser) {
-            parser->reset();
-        }
+void DataManager::addSerie(const QString &name, const QColor &initialColor, bool initialVisible) {
+    if (!m_seriesInfo.contains(name)) {
+        SerieInfo info;
+        info.color = initialColor;
+        info.visible = initialVisible;
+        m_seriesInfo.insert(name, info);
+        emit serieAdded(name);
+        qDebug() << "Serie added:" << name;
+    } else {
+        qDebug() << "Serie already exists:" << name;
     }
 }
 
-void DataManager::stopAllSources()
-{
-    for (IDataSource* source : m_dataSources) {
-        source->stop();
+void DataManager::removeSerie(const QString &name) {
+    if (m_seriesInfo.remove(name)) {
+        emit serieRemoved(name);
+        qDebug() << "Serie removed:" << name;
     }
 }
-
-void DataManager::onSourceDataReceived(const QByteArray& rawData, const QString& sourceId)
-{
     
-    IDataParser* parser = m_parsers.value(sourceId);
-    if (!parser) {
-        qWarning() << "No parser registered for source ID:" << sourceId << ". Data will not be parsed.";
+/*
+void DataManager::addDataTimeToSerie(const QString& name, double time, double value)
+{
+
+}
+*/
+void DataManager::addDataToSerie(const QString& name, double x, double y){
+    // Esto asume que DataPoint ya tiene un 'sourceId' que corresponde al 'name' de la serie.
+    // De lo contrario, necesitarías una lógica para mapear el DataPoint a una serie.
+    const QString& serieName = name; // Usamos sourceId del DataPoint como nombre de serie
+
+    if (!m_seriesInfo.contains(serieName)) {
+        qWarning() << "Serie not found:" << serieName;
         return;
     }
 
-    // El parser ahora procesa el chunk y devuelve una lista de DataPoints completos que haya encontrado
-    QList<DataPoint> normalizedDataPoints = parser->processAndParse(rawData);
+    SerieInfo& info = m_seriesInfo[serieName]; // Obtener referencia a la SerieInfo
 
-    for (const DataPoint& dp : normalizedDataPoints) {
-        if (!dp.values.isEmpty()) {
-            emit newDataAvailable(dp, sourceId);
-        } else {
-            qWarning() << "Parsed frame resulted in empty DataPoint for source" << sourceId << ". Skipping.";
-        }
+    info.xData.append(x); // Agregar valor al eje X
+    info.yData.append(y); // Agregar valor al eje Y
+
+    emit serieDataChanged(serieName);
+}
+
+void DataManager::setSerieColor(const QString &name, const QColor &color) {
+    if (m_seriesInfo.contains(name)) {
+        m_seriesInfo[name].color = color;
+        emit serieColorChanged(name, color);
     }
+}
+
+void DataManager::setSerieVisibility(const QString &name, bool visible) {
+    if (m_seriesInfo.contains(name)) {
+        m_seriesInfo[name].visible = visible;
+        emit serieVisibilityChanged(name, visible);
+    }
+}
+
+void DataManager::clearSerie(const QString &name) {
+    if (m_seriesInfo.contains(name)) {
+        m_seriesInfo[name].xData.clear();
+        m_seriesInfo[name].yData.clear();
+        emit serieCleared(name);
+    }
+}
+
+void DataManager::clearAllSeries() {
+    for (const QString& name : m_seriesInfo.keys()) {
+        m_seriesInfo[name].xData.clear();
+        m_seriesInfo[name].yData.clear();
+    }
+    emit allSeriesCleared(); // Señal para limpiar todo
 }

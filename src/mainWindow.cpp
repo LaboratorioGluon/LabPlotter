@@ -7,6 +7,7 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
+    , m_sourceManager(new SourceManager(this)) // Inicializa el SourceManager
     , m_dataManager(new DataManager(this)) // Inicializa el DataManager
 {
     ui->setupUi(this);
@@ -15,17 +16,37 @@ MainWindow::MainWindow(QWidget *parent)
 
     setupPlot();
 
-    connect(m_dataManager, &DataManager::newDataAvailable, this, &MainWindow::newData);
+    connect(m_sourceManager, &SourceManager::newDataAvailable, this, &MainWindow::newData);
 
-    SerialPortSource *serialSource = new SerialPortSource("Serial1", "/dev/ttyUSB0", m_dataManager);
-    m_dataManager->addSource(serialSource);
-    m_dataManager->registerParser("Serial1", new CharSeparatedParser(this, ','));
-    m_dataManager->startAllSources();
+    SerialPortSource *serialSource = new SerialPortSource("Serial1", "/dev/ttyUSB0", m_sourceManager);
+    m_sourceManager->addSource(serialSource);
+    m_sourceManager->registerParser("Serial1", new CharSeparatedParser(this, ','));
+    m_sourceManager->startAllSources();
 
     m_plotRefreshTimer = new QTimer(this);
     m_plotRefreshTimer->setInterval(50);
     connect(m_plotRefreshTimer, &QTimer::timeout, this, &MainWindow::refreshPlot);
     m_plotRefreshTimer->start();
+
+    connect(m_dataManager, &DataManager::serieAdded, this, [this](const QString &name) {
+        QCustomPlot *cp = ui->customPlot;
+        int graphIndex = cp->graphCount();
+        cp->addGraph();
+        QPen pen;
+        pen.setWidth(2);
+        pen.setColor(m_dataManager->getSerieColor(name));
+        cp->graph(graphIndex)->setPen(pen);
+        cp->graph(graphIndex)->setName(name);
+        cp->graph(graphIndex)->setVisible(m_dataManager->isSerieVisible(name));
+
+        QTreeWidgetItem *item = new QTreeWidgetItem(ui->signalList);
+        item->setText(0, name);
+        item->setForeground(0, QBrush(m_dataManager->getSerieColor(name)));
+        item->setCheckState(0, m_dataManager->isSerieVisible(name) ? Qt::Checked : Qt::Unchecked);
+        item->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsUserCheckable | Qt::ItemIsEditable);
+        connect(ui->signalList, &QTreeWidget::itemChanged, this, &MainWindow::signalListItemChanged);
+    });
+
 }
 
 MainWindow::~MainWindow()
@@ -67,6 +88,11 @@ void MainWindow::setupPlot()
     cp->yAxis->setSubTickPen (QPen (gui_colors[2]));
     cp->yAxis->setTickLabelColor (gui_colors[2]);
 
+    cp->legend->setVisible (true);
+    cp->legend->setBrush (gui_colors[3]);
+    cp->legend->setTextColor(gui_colors[2]);
+    cp->legend->setBorderPen (gui_colors[2]);
+
     // give the axes some labels:
     ui->customPlot->replot();   
 
@@ -76,6 +102,28 @@ void MainWindow::newData(const DataPoint& data, const QString& sourceId)
 {
     static int datacount = 0;
     m_dataPoints.append(data); 
+}
+
+void MainWindow::signalListItemChanged(QTreeWidgetItem *item, int column)
+{
+    if (item && column == 0)
+    {
+        // Check if the item is checked or unchecked
+        bool isChecked = (item->checkState(0) == Qt::Checked);
+        QString graphName = item->text(0);
+
+        // Find the corresponding graph in the plot
+        QCustomPlot *cp = ui->customPlot;
+        for (int i = 0; i < cp->graphCount(); ++i) {
+            if (cp->graph(i)->name() == graphName) {
+                cp->graph(i)->setVisible(isChecked);
+                break;
+            }
+        }
+
+        // Replot to reflect changes
+        cp->replot();
+    }
 }
 
 void MainWindow::refreshPlot()
@@ -96,7 +144,8 @@ void MainWindow::refreshPlot()
 
             // Ensure the graph exists for the current index
             if (cp->graphCount() <= i) {
-                cp->addGraph();
+                m_dataManager->addSerie(QString("Graph %1").arg(i + 1), m_plotColors[i], true);
+                /*cp->addGraph();
                 QPen pen;
                 pen.setWidth(2);
                 pen.setStyle(Qt::SolidLine);
@@ -105,9 +154,12 @@ void MainWindow::refreshPlot()
                 cp->graph(i)->setPen(pen); // set the graph
                 cp->graph(i)->setName(QString("Graph %1").arg(i + 1));
                 QTreeWidgetItem *item = new QTreeWidgetItem(ui->signalList);
-                item->setText(0, QString("Graph %1").arg(i + 1));
+                item->setText(0, QString("Graph %1").arg(i + 1));                
+                item->setForeground(0, QBrush(m_plotColors[i]));
                 item->setCheckState(0, Qt::Checked);
+                item->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsUserCheckable | Qt::ItemIsEditable);
                 ui->signalList->addTopLevelItem( item);
+                connect(ui->signalList, &QTreeWidget::itemChanged, this, &MainWindow::signalListItemChanged);*/
             }
             cp->graph(i)->addData(datacount, dp.values[i]);
         }
