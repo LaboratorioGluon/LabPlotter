@@ -33,6 +33,7 @@ public:
     //void addDataPoint(const DataPoint& dataPoint);
     //void addDataTimeToSerie(const int index, double time, double value);
     
+    void clearSeries() { m_seriesInfo.clear(); emit serieRemoved(-1); } // Clear all series and emit signal
 
     void setSerieColor(const int index, const QColor& color);
     void setSerieVisibility(const int index, bool visible);

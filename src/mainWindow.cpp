@@ -3,6 +3,7 @@
 #include "widgets/connectionPanel.h"
 #include "dataInterface/SerialPortSource.h"
 #include "dataInterface/CharSeparatedParser.h"
+#include <QElapsedTimer>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -10,27 +11,28 @@ MainWindow::MainWindow(QWidget *parent)
     , m_sourceManager(new SourceManager(this)) // Inicializa el SourceManager
     , m_dataManager(new DataManager(this)) // Inicializa el DataManager
 {
+    datacount = 0; // Initialize data count
     ui->setupUi(this);
-    
+
     m_dataPoints.clear();
     m_seriesToUI.clear();
 
     QPushButton*  buttonExtra = new QPushButton("Extra Button", this);
-    ui->horizontalLayout_2->addWidget(buttonExtra);
+
 
     setupPlot();
 
     connect(m_sourceManager, &SourceManager::newDataAvailable, this, &MainWindow::newData);
 
-    /*SerialPortSource *serialSource = new SerialPortSource("Serial1", "/dev/ttyUSB0", m_sourceManager);
-    m_sourceManager->addSource(serialSource);
-    m_sourceManager->registerParser("Serial1", new CharSeparatedParser(this, ','));
-    m_sourceManager->startAllSources();*/
-
     m_plotRefreshTimer = new QTimer(this);
     m_plotRefreshTimer->setInterval(50);
     connect(m_plotRefreshTimer, &QTimer::timeout, this, &MainWindow::refreshPlot);
     m_plotRefreshTimer->start();
+
+    connect(ui->customPlot, SIGNAL(mousePress(QMouseEvent*)), this, SLOT(mousePress(QMouseEvent*)));
+    connect(ui->customPlot, SIGNAL(mouseWheel(QWheelEvent*)), this, SLOT(mouseWheel(QWheelEvent*)));
+
+    connect(ui->signalList, &QTreeWidget::itemChanged, this, &MainWindow::signalListItemChanged);
 
     connect(m_dataManager, &DataManager::serieAdded, this, [this](const int index) {
         QCustomPlot *cp = ui->customPlot;
@@ -49,8 +51,42 @@ MainWindow::MainWindow(QWidget *parent)
         item->setForeground(0, QBrush(m_dataManager->getSerieColor(index)));
         item->setCheckState(0, m_dataManager->isSerieVisible(index) ? Qt::Checked : Qt::Unchecked);
         item->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsUserCheckable | Qt::ItemIsEditable);
-        connect(ui->signalList, &QTreeWidget::itemChanged, this, &MainWindow::signalListItemChanged);
-        m_seriesToUI.insert(index, {graphIndex, item});
+
+        QTreeWidgetItem *axisItem = new QTreeWidgetItem(item);
+        QHBoxLayout *axisLayout = new QHBoxLayout();
+        axisLayout->setContentsMargins(0, 0, 0, 0);
+        axisLayout->setSpacing(5);
+
+        QLabel *axisLabel = new QLabel("Axis:", ui->signalList);
+        axisLayout->addWidget(axisLabel);
+
+        QComboBox *axisEdit = new QComboBox(ui->signalList);
+        axisEdit->addItem("Y0", QVariant::fromValue(cp->yAxis));
+        axisEdit->addItem("Y1", QVariant::fromValue(cp->yAxis2));
+        axisLayout->addWidget(axisEdit);
+        
+
+        QWidget *axisline = new QWidget(ui->signalList);
+        //axisline->setFixedHeight(1);
+        axisline->setLayout(axisLayout);
+
+        ui->signalList->setItemWidget(axisItem, 0, axisline);
+
+        //item->insertChild(0, new QLineEdit(new QString("Edit"), this));
+        m_seriesToUI.insert(index, {graphIndex, item, cp->yAxis});
+
+        connect(axisEdit, &QComboBox::currentIndexChanged, this, [this, index, axisEdit](const int currentIndex) {
+            //m_dataManager->setSerieAxis(index, axis);
+            QVariant axisVariant = axisEdit->itemData(currentIndex);
+            QCustomPlot *cp = ui->customPlot;
+            if (index < cp->graphCount()) {
+                //cp->graph(index)->setYAxis(axis == "Y0" ? 0 : 1);
+                cp->graph(index)->setValueAxis(axisVariant.value<QCPAxis*>());
+                cp->yAxis2->setVisible(true);
+                cp->axisRect()->setRangeDrag(Qt::Vertical | Qt::Horizontal);
+                cp->replot();
+            }
+        });
     });
 
     connect(m_dataManager, &DataManager::serieNameChanged, this, [this](const int index, const QString &name) {
@@ -106,6 +142,20 @@ MainWindow::MainWindow(QWidget *parent)
             //ui->testButton->setStyleSheet("background-color: red; color: black;");
         }
     });
+    
+    connect(ui->clearDataButton, &QPushButton::clicked, this, [this]() {
+        QCustomPlot *cp = ui->customPlot;
+        cp->clearGraphs();
+        m_dataManager->clearSeries();
+        for (auto &serie : m_seriesToUI) {
+            delete serie.treeItem; // Delete the tree item associated with the series
+        }
+        m_seriesToUI.clear();
+        ui->signalList->clear();
+        m_dataPoints.clear();
+        datacount=0;
+        cp->replot();
+    });
 
 }
 
@@ -148,6 +198,14 @@ void MainWindow::setupPlot()
     cp->yAxis->setSubTickPen (QPen (gui_colors[2]));
     cp->yAxis->setTickLabelColor (gui_colors[2]);
 
+    cp->yAxis2->grid()->setPen (QPen(gui_colors[2], 1, Qt::DotLine));
+    cp->yAxis2->grid()->setSubGridPen (QPen(gui_colors[1], 1, Qt::DotLine));
+    cp->yAxis2->grid()->setSubGridVisible (true);
+    cp->yAxis2->setBasePen (QPen (gui_colors[2]));
+    cp->yAxis2->setTickPen (QPen (gui_colors[2]));
+    cp->yAxis2->setSubTickPen (QPen (gui_colors[2]));
+    cp->yAxis2->setTickLabelColor (gui_colors[2]);
+
     cp->legend->setVisible (true);
     cp->legend->setBrush (gui_colors[3]);
     cp->legend->setTextColor(gui_colors[2]);
@@ -158,15 +216,58 @@ void MainWindow::setupPlot()
 
 }
 
+
+void MainWindow::mousePress(QMouseEvent* event)
+{
+  // if an axis is selected, only allow the direction of that axis to be dragged
+  // if no axis is selected, both directions may be dragged
+  
+  if (ui->customPlot->xAxis->selectedParts().testFlag(QCPAxis::spAxis)){
+    ui->customPlot->axisRect()->setRangeDrag(ui->customPlot->xAxis->orientation());    
+    ui->customPlot->axisRect()->setRangeDragAxes(ui->customPlot->xAxis, ui->customPlot->yAxis);
+  }else if (ui->customPlot->yAxis->selectedParts().testFlag(QCPAxis::spAxis)){
+    ui->customPlot->axisRect()->setRangeDrag(ui->customPlot->yAxis->orientation());
+    ui->customPlot->axisRect()->setRangeDragAxes(ui->customPlot->xAxis, ui->customPlot->yAxis);
+  }else if (ui->customPlot->yAxis2->selectedParts().testFlag(QCPAxis::spAxis)){
+    ui->customPlot->axisRect()->setRangeDrag(ui->customPlot->yAxis2->orientation());
+    ui->customPlot->axisRect()->setRangeDragAxes(ui->customPlot->xAxis, ui->customPlot->yAxis2);
+  }else{
+    ui->customPlot->axisRect()->setRangeDrag(Qt::Vertical);
+    ui->customPlot->axisRect()->setRangeDragAxes(ui->customPlot->xAxis, ui->customPlot->yAxis);
+  }
+}
+
+void MainWindow::mouseWheel(QWheelEvent* event)
+{
+  // if an axis is selected, only allow the direction of that axis to be zoomed
+  // if no axis is selected, both directions may be zoomed
+  
+  if (ui->customPlot->xAxis->selectedParts().testFlag(QCPAxis::spAxis)){
+    ui->customPlot->axisRect()->setRangeZoom(ui->customPlot->xAxis->orientation());
+    ui->customPlot->axisRect()->setRangeZoomAxes(ui->customPlot->xAxis, ui->customPlot->yAxis);
+    //ui->spinPoints->setValue(ui->spinPoints->value() + 10*event->angleDelta().y()/120);
+  }else if (ui->customPlot->yAxis->selectedParts().testFlag(QCPAxis::spAxis)){
+    ui->customPlot->axisRect()->setRangeZoom(ui->customPlot->yAxis->orientation());
+    ui->customPlot->axisRect()->setRangeZoomAxes(ui->customPlot->xAxis, ui->customPlot->yAxis);
+  }else if (ui->customPlot->yAxis2->selectedParts().testFlag(QCPAxis::spAxis)){
+    ui->customPlot->axisRect()->setRangeZoom(Qt::Vertical);
+    ui->customPlot->axisRect()->setRangeZoomAxes(ui->customPlot->xAxis, ui->customPlot->yAxis2);
+  }else{
+    ui->customPlot->axisRect()->setRangeZoom( Qt::Vertical);
+    ui->customPlot->axisRect()->setRangeZoomAxes(ui->customPlot->xAxis, ui->customPlot->yAxis);
+  }
+
+}
+
 void MainWindow::newData(const DataPoint& data, const QString& sourceId)
 {
-    static int datacount = 0;
+    //qDebug() << "New data received from source:" << sourceId << "Data: " << data.values;
     m_dataPoints.append(data); 
 }
 
 void MainWindow::signalListItemChanged(QTreeWidgetItem *item, int column)
 {
-    //qDebug() << "Signal list item changed:" << item->text(0) << "Column:" << column;
+    qDebug() << "Signal list item changed:" << item->text(0) << "Column:" << column;
     
     if (item)
     {
@@ -198,7 +299,6 @@ void MainWindow::signalListItemChanged(QTreeWidgetItem *item, int column)
 
 void MainWindow::refreshPlot()
 {
-    static int datacount = 0;
     QCustomPlot *cp = ui->customPlot;
 
     while(!m_dataPoints.isEmpty()) {
@@ -211,9 +311,9 @@ void MainWindow::refreshPlot()
         //qDebug() << "Adding data point at index" << datacount << ":" << dp.values;
 
         for( int i = 0; i < dp.values.size(); i++ ) {
-
             // Ensure the graph exists for the current index
             if (cp->graphCount() <= i) {
+                qDebug() << "Adding new graph for index" << i;
                 m_dataManager->addSerie(QString("Graph %1").arg(i + 1), m_plotColors[i], true);
             }
             cp->graph(i)->addData(datacount, dp.values[i]);
