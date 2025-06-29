@@ -29,7 +29,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_plotRefreshTimer, &QTimer::timeout, this, &MainWindow::refreshPlot);
     m_plotRefreshTimer->start();
 
-    //connect(ui->customPlot, SIGNAL(mousePress(QMouseEvent*)), this, SLOT(mousePress(QMouseEvent*)));
+    connect(ui->customPlot, SIGNAL(mousePress(QMouseEvent*)), this, SLOT(mousePress(QMouseEvent*)));
     connect(ui->customPlot, SIGNAL(mouseWheel(QWheelEvent*)), this, SLOT(mouseWheel(QWheelEvent*)));
 
     connect(ui->signalList, &QTreeWidget::itemChanged, this, &MainWindow::signalListItemChanged);
@@ -46,28 +46,13 @@ MainWindow::MainWindow(QWidget *parent)
             ui->customPlot->axisRect()->setRangeDrag(ui->customPlot->yAxis2->orientation());
             ui->customPlot->axisRect()->setRangeDragAxes(ui->customPlot->xAxis, ui->customPlot->yAxis2);
             highlightSeriesInAxis(ui->customPlot->yAxis2);
-            qDebug() << "Plot is live, dragging allowed in vertical direction only.";
         }else{
             ui->customPlot->axisRect()->setRangeDrag(Qt::Vertical | Qt::Horizontal);
             ui->customPlot->axisRect()->setRangeDragAxes(ui->customPlot->xAxis, ui->customPlot->yAxis);
             isPlotLive = false;
             ui->toolGoLive->setEnabled(true);
             highlightSeriesDisable();
-            qDebug() << "Plot is not live, dragging allowed in both directions.";
         }
-        
-        /*// Check which axis is selected and set the range drag accordingly
-        if (ui->customPlot->xAxis->selectedParts().testFlag(QCPAxis::spAxis)) {
-            ui->customPlot->axisRect()->setRangeDrag(Qt::Horizontal);
-            ui->customPlot->axisRect()->setRangeDragAxes(ui->customPlot->xAxis, ui->customPlot->yAxis);
-        }else if (ui->customPlot->yAxis->selectedParts().testFlag(QCPAxis::spAxis)) {
-            qDebug() << "Y Axis selected for dragging.";
-        } else if (ui->customPlot->yAxis2->selectedParts().testFlag(QCPAxis::spAxis)) {
-            qDebug() << "Y2 Axis selected for dragging.";
-        } else {
-            qDebug() << "No specific axis selected, allowing full range drag.";
-        }
-            */
     });
 
     connect(m_dataManager, &DataManager::serieAdded, this, [this](const int index) {
@@ -188,7 +173,13 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->toolGoLive, &QToolButton::clicked, this, [this]() {
         isPlotLive = true;
         ui->toolGoLive->setEnabled(false);
+    });
 
+    connect(ui->toolAutoZoom, &QToolButton::clicked, this, [this]() {
+        QCustomPlot *cp = ui->customPlot;
+        cp->yAxis->rescale();
+        cp->yAxis2->rescale();
+        cp->replot();
     });
 
 }
@@ -273,26 +264,14 @@ void MainWindow::setupPlot()
 
 void MainWindow::mousePress(QMouseEvent* event)
 {
-  // if an axis is selected, only allow the direction of that axis to be dragged
-  // if no axis is selected, both directions may be dragged
-  
-  if (ui->customPlot->xAxis->selectedParts().testFlag(QCPAxis::spAxis)){
-    ui->customPlot->axisRect()->setRangeDrag(ui->customPlot->xAxis->orientation());    
-    ui->customPlot->axisRect()->setRangeDragAxes(ui->customPlot->xAxis, ui->customPlot->yAxis);
-  }else if (ui->customPlot->yAxis->selectedParts().testFlag(QCPAxis::spAxis)){
-    ui->customPlot->axisRect()->setRangeDrag(ui->customPlot->yAxis->orientation());
-    ui->customPlot->axisRect()->setRangeDragAxes(ui->customPlot->xAxis, ui->customPlot->yAxis);
-  }else if (ui->customPlot->yAxis2->selectedParts().testFlags(QCPAxis::spAxis | QCPAxis::spAxisLabel | QCPAxis::spTickLabels)){
-    ui->customPlot->axisRect()->setRangeDrag(ui->customPlot->yAxis2->orientation());
-    ui->customPlot->axisRect()->setRangeDragAxes(ui->customPlot->xAxis, ui->customPlot->yAxis2);
-    qDebug() << "Plot is live, dragging allowed in vertical direction only.";
-  }else{
-    ui->customPlot->axisRect()->setRangeDrag(Qt::Vertical | Qt::Horizontal);
-    ui->customPlot->axisRect()->setRangeDragAxes(ui->customPlot->xAxis, ui->customPlot->yAxis);
-    isPlotLive = false;
-    ui->toolGoLive->setEnabled(true);
-    qDebug() << "Plot is not live, dragging allowed in both directions.";
-  }
+    if(event->button() == Qt::RightButton)
+    {
+        //deselect all axes
+        ui->customPlot->xAxis->setSelectedParts(QCPAxis::spNone);
+        ui->customPlot->yAxis->setSelectedParts(QCPAxis::spNone);
+        ui->customPlot->yAxis2->setSelectedParts(QCPAxis::spNone);
+        highlightSeriesDisable();
+    }
 }
 
 void MainWindow::mouseWheel(QWheelEvent* event)

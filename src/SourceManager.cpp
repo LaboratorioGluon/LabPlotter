@@ -55,6 +55,8 @@ void SourceManager::registerParser(const QString& sourceIdOrFormatType, IDataPar
 {
     if (m_parsers.contains(sourceIdOrFormatType)) {
         delete m_parsers.value(sourceIdOrFormatType);
+        m_parsers.remove(sourceIdOrFormatType);
+
     }
 
     if (parser)
