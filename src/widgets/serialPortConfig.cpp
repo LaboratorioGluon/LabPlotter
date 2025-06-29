@@ -39,6 +39,14 @@ SerialPortConfig::SerialPortConfig(QWidget *parent) :
             emit serialPortConnectChange(true, portName, baudRate);
         }
     });
+
+    connect(ui->refreshPorts, &QPushButton::clicked, this, [this]() {
+        ui->portCombo->clear();
+        const auto serialPorts = QSerialPortInfo::availablePorts();
+        for (const QSerialPortInfo &port : serialPorts) {
+            ui->portCombo->addItem(port.portName());
+        }
+    });
 }
 
 SerialPortConfig::~SerialPortConfig()
