@@ -56,7 +56,10 @@ private:
 
     QMap<int, SerieToUI> m_seriesToUI;
 
+    // plot data
     int datacount;
+    int xAxisNumElements = 500;
+    bool isPlotLive = true;
 
     QColor m_plotColors[14] =
         {

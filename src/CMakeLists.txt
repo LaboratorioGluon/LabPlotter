@@ -1,56 +1,53 @@
-# mi_proyecto/src/CMakeLists.txt
 
-# Aquí NO necesitas project(), cmake_minimum_required(), find_package(), etc.
-# Se heredan del CMakeLists.txt padre.
 
-# Definir las rutas de las carpetas de origen relativas a src/
 # Los archivos fuente (.cpp)
 set(APP_SOURCES
-    main.cpp
-    mainWindow.cpp
-    DataManager.cpp
-    SourceManager.cpp
-    dataInterface/SerialPortSource.cpp
-    dataInterface/CharSeparatedParser.cpp
-    dataInterface/IDataParser.cpp
-    widgets/connectionPanel.cpp
-    widgets/serialPortConfig.cpp
+main.cpp
+mainWindow.cpp
+DataManager.cpp
+SourceManager.cpp
+dataInterface/SerialPortSource.cpp
+dataInterface/CharSeparatedParser.cpp
+dataInterface/IDataParser.cpp
+widgets/connectionPanel.cpp
+widgets/serialPortConfig.cpp
 )
 
 # Los archivos de cabecera (.h)
 set(APP_HEADERS
-    mainWindow.h
-    SourceManager.h
-    DataManager.h
-    dataInterface/IDataSource.h
-    dataInterface/DataPoint.h
-    dataInterface/CharSeparatedParser.h
-    dataInterface/SerialPortSource.h
-    widgets/connectionPanel.h
-    widgets/serialPortConfig.h
+mainWindow.h
+SourceManager.h
+DataManager.h
+dataInterface/IDataSource.h
+dataInterface/DataPoint.h
+dataInterface/CharSeparatedParser.h
+dataInterface/SerialPortSource.h
+widgets/connectionPanel.h
+widgets/serialPortConfig.h
 )
 
 set(APP_FORMS
-    ui/mainWindow.ui
-    ui/connectionPanel.ui
-    ui/serialPortConfig.ui
+ui/mainWindow.ui
+ui/connectionPanel.ui
+ui/serialPortConfig.ui
 )
 
 # Los archivos de recursos .qrc
 set(APP_RESOURCES
-    ../resources/app_resources.qrc # Ruta relativa a src/
+../resources/app_resources.qrc # Ruta relativa a src/
 )
 
 
 qt_add_executable(${PROJECT_NAME}
-    ${APP_SOURCES}
-    ${APP_HEADERS}
-    ${APP_FORMS}
-    ${APP_RESOURCES}
+${APP_SOURCES}
+${APP_HEADERS}
+${APP_FORMS}
+${APP_RESOURCES}
 )
 
+
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    Qt6::Widgets
+Qt6::Widgets
     Qt6::Gui
     Qt6::Core
     Qt6::SerialPort

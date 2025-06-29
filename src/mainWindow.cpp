@@ -33,6 +33,32 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->customPlot, SIGNAL(mouseWheel(QWheelEvent*)), this, SLOT(mouseWheel(QWheelEvent*)));
 
     connect(ui->signalList, &QTreeWidget::itemChanged, this, &MainWindow::signalListItemChanged);
+    /*connect(ui->customPlot, &QCustomPlot::axisClick, this, [this](QCPAxis *axis, QCPAxis::SelectablePart part) {
+        if (part == QCPAxis::spAxis || part == QCPAxis::spAxisLabel || part == QCPAxis::spTickLabels) {
+            axis->setSelectedParts(QCPAxis::spAxis | QCPAxis::spAxisLabel | QCPAxis::spTickLabels);
+            ui->customPlot->axisRect()->setRangeDrag(axis->orientation());
+            ui->customPlot->axisRect()->setRangeZoom(axis->orientation());
+            ui->customPlot->axisRect()->setRangeZoomAxes(ui->customPlot->xAxis, axis);
+            ui->customPlot->axisRect()->setRangeDragAxes(ui->customPlot->xAxis, axis);
+            qDebug() << "Dragging enabled for axis:" << axis->label();
+        }
+        else
+
+    });*/
+
+    /*connect(ui->customPlot, &QCustomPlot::selectionChangedByUser, this, [this]() {
+        // Check which axis is selected and set the range drag accordingly
+        if (ui->customPlot->xAxis->selectedParts().testFlag(QCPAxis::spAxis)) {
+            ui->customPlot->axisRect()->setRangeDrag(Qt::Horizontal);
+            ui->customPlot->axisRect()->setRangeDragAxes(ui->customPlot->xAxis, ui->customPlot->yAxis);
+        }else if (ui->customPlot->yAxis->selectedParts().testFlag(QCPAxis::spAxis)) {
+            qDebug() << "Y Axis selected for dragging.";
+        } else if (ui->customPlot->yAxis2->selectedParts().testFlags(QCPAxis::spAxis | QCPAxis::spAxisLabel | QCPAxis::spTickLabels)) {
+            qDebug() << "Y2 Axis selected for dragging.";
+        } else {
+            qDebug() << "No specific axis selected, allowing full range drag.";
+        }
+    });*/
 
     connect(m_dataManager, &DataManager::serieAdded, this, [this](const int index) {
         QCustomPlot *cp = ui->customPlot;
@@ -157,6 +183,12 @@ MainWindow::MainWindow(QWidget *parent)
         cp->replot();
     });
 
+    connect(ui->toolGoLive, &QToolButton::clicked, this, [this]() {
+        isPlotLive = true;
+        ui->toolGoLive->setEnabled(false);
+
+    });
+
 }
 
 MainWindow::~MainWindow()
@@ -176,6 +208,8 @@ void MainWindow::setupPlot()
     };
 
     QCustomPlot *cp = ui->customPlot;
+    //cp->setOpenGl(true);
+    //cp->setBufferDevicePixelRatio(1.0);
     cp->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectAxes |
                         QCP::iSelectLegend | QCP::iSelectPlottables);
     cp->xAxis->setRange(-1, 1);    
@@ -205,6 +239,9 @@ void MainWindow::setupPlot()
     cp->yAxis2->setTickPen (QPen (gui_colors[2]));
     cp->yAxis2->setSubTickPen (QPen (gui_colors[2]));
     cp->yAxis2->setTickLabelColor (gui_colors[2]);
+    cp->yAxis2->setSelectableParts(QCPAxis::spAxis | QCPAxis::spAxisLabel | QCPAxis::spTickLabels);
+    cp->yAxis2->setLabel("Y2 Axis");
+
 
     cp->legend->setVisible (true);
     cp->legend->setBrush (gui_colors[3]);
@@ -228,12 +265,16 @@ void MainWindow::mousePress(QMouseEvent* event)
   }else if (ui->customPlot->yAxis->selectedParts().testFlag(QCPAxis::spAxis)){
     ui->customPlot->axisRect()->setRangeDrag(ui->customPlot->yAxis->orientation());
     ui->customPlot->axisRect()->setRangeDragAxes(ui->customPlot->xAxis, ui->customPlot->yAxis);
-  }else if (ui->customPlot->yAxis2->selectedParts().testFlag(QCPAxis::spAxis)){
+  }else if (ui->customPlot->yAxis2->selectedParts().testFlags(QCPAxis::spAxis | QCPAxis::spAxisLabel | QCPAxis::spTickLabels)){
     ui->customPlot->axisRect()->setRangeDrag(ui->customPlot->yAxis2->orientation());
     ui->customPlot->axisRect()->setRangeDragAxes(ui->customPlot->xAxis, ui->customPlot->yAxis2);
+    qDebug() << "Plot is live, dragging allowed in vertical direction only.";
   }else{
-    ui->customPlot->axisRect()->setRangeDrag(Qt::Vertical);
+    ui->customPlot->axisRect()->setRangeDrag(Qt::Vertical | Qt::Horizontal);
     ui->customPlot->axisRect()->setRangeDragAxes(ui->customPlot->xAxis, ui->customPlot->yAxis);
+    isPlotLive = false;
+    ui->toolGoLive->setEnabled(true);
+    qDebug() << "Plot is not live, dragging allowed in both directions.";
   }
 }
 
@@ -243,9 +284,8 @@ void MainWindow::mouseWheel(QWheelEvent* event)
   // if no axis is selected, both directions may be zoomed
   
   if (ui->customPlot->xAxis->selectedParts().testFlag(QCPAxis::spAxis)){
-    ui->customPlot->axisRect()->setRangeZoom(ui->customPlot->xAxis->orientation());
-    ui->customPlot->axisRect()->setRangeZoomAxes(ui->customPlot->xAxis, ui->customPlot->yAxis);
-    //ui->spinPoints->setValue(ui->spinPoints->value() + 10*event->angleDelta().y()/120);
+    ui->customPlot->axisRect()->setRangeZoomAxes(nullptr, nullptr);
+    xAxisNumElements += 10 * event->angleDelta().y() / 120;
   }else if (ui->customPlot->yAxis->selectedParts().testFlag(QCPAxis::spAxis)){
     ui->customPlot->axisRect()->setRangeZoom(ui->customPlot->yAxis->orientation());
     ui->customPlot->axisRect()->setRangeZoomAxes(ui->customPlot->xAxis, ui->customPlot->yAxis);
@@ -321,6 +361,8 @@ void MainWindow::refreshPlot()
         datacount++;
 
     }
-
+    if( isPlotLive ) {
+        cp->xAxis->setRange(datacount - xAxisNumElements, datacount + 10);
+    }
     cp->replot();
 }
