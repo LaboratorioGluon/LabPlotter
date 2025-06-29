@@ -1,0 +1,3 @@
+# LabPlotter
+
+Serial port plotter
