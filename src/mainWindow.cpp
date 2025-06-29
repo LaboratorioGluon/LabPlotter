@@ -29,36 +29,46 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_plotRefreshTimer, &QTimer::timeout, this, &MainWindow::refreshPlot);
     m_plotRefreshTimer->start();
 
-    connect(ui->customPlot, SIGNAL(mousePress(QMouseEvent*)), this, SLOT(mousePress(QMouseEvent*)));
+    //connect(ui->customPlot, SIGNAL(mousePress(QMouseEvent*)), this, SLOT(mousePress(QMouseEvent*)));
     connect(ui->customPlot, SIGNAL(mouseWheel(QWheelEvent*)), this, SLOT(mouseWheel(QWheelEvent*)));
 
     connect(ui->signalList, &QTreeWidget::itemChanged, this, &MainWindow::signalListItemChanged);
-    /*connect(ui->customPlot, &QCustomPlot::axisClick, this, [this](QCPAxis *axis, QCPAxis::SelectablePart part) {
-        if (part == QCPAxis::spAxis || part == QCPAxis::spAxisLabel || part == QCPAxis::spTickLabels) {
-            axis->setSelectedParts(QCPAxis::spAxis | QCPAxis::spAxisLabel | QCPAxis::spTickLabels);
-            ui->customPlot->axisRect()->setRangeDrag(axis->orientation());
-            ui->customPlot->axisRect()->setRangeZoom(axis->orientation());
-            ui->customPlot->axisRect()->setRangeZoomAxes(ui->customPlot->xAxis, axis);
-            ui->customPlot->axisRect()->setRangeDragAxes(ui->customPlot->xAxis, axis);
-            qDebug() << "Dragging enabled for axis:" << axis->label();
+
+    connect(ui->customPlot, &QCustomPlot::selectionChangedByUser, this, [this]() {
+        if (ui->customPlot->xAxis->selectedParts().testFlag(QCPAxis::spAxis)){
+            ui->customPlot->axisRect()->setRangeDrag(ui->customPlot->xAxis->orientation());    
+            ui->customPlot->axisRect()->setRangeDragAxes(ui->customPlot->xAxis, ui->customPlot->yAxis);
+        }else if (ui->customPlot->yAxis->selectedParts().testFlag(QCPAxis::spAxis)){
+            ui->customPlot->axisRect()->setRangeDrag(ui->customPlot->yAxis->orientation());
+            ui->customPlot->axisRect()->setRangeDragAxes(ui->customPlot->xAxis, ui->customPlot->yAxis);
+            highlightSeriesInAxis(ui->customPlot->yAxis);
+        }else if (ui->customPlot->yAxis2->selectedParts().testAnyFlags(QCPAxis::spAxis | QCPAxis::spAxisLabel | QCPAxis::spTickLabels)){
+            ui->customPlot->axisRect()->setRangeDrag(ui->customPlot->yAxis2->orientation());
+            ui->customPlot->axisRect()->setRangeDragAxes(ui->customPlot->xAxis, ui->customPlot->yAxis2);
+            highlightSeriesInAxis(ui->customPlot->yAxis2);
+            qDebug() << "Plot is live, dragging allowed in vertical direction only.";
+        }else{
+            ui->customPlot->axisRect()->setRangeDrag(Qt::Vertical | Qt::Horizontal);
+            ui->customPlot->axisRect()->setRangeDragAxes(ui->customPlot->xAxis, ui->customPlot->yAxis);
+            isPlotLive = false;
+            ui->toolGoLive->setEnabled(true);
+            highlightSeriesDisable();
+            qDebug() << "Plot is not live, dragging allowed in both directions.";
         }
-        else
-
-    });*/
-
-    /*connect(ui->customPlot, &QCustomPlot::selectionChangedByUser, this, [this]() {
-        // Check which axis is selected and set the range drag accordingly
+        
+        /*// Check which axis is selected and set the range drag accordingly
         if (ui->customPlot->xAxis->selectedParts().testFlag(QCPAxis::spAxis)) {
             ui->customPlot->axisRect()->setRangeDrag(Qt::Horizontal);
             ui->customPlot->axisRect()->setRangeDragAxes(ui->customPlot->xAxis, ui->customPlot->yAxis);
         }else if (ui->customPlot->yAxis->selectedParts().testFlag(QCPAxis::spAxis)) {
             qDebug() << "Y Axis selected for dragging.";
-        } else if (ui->customPlot->yAxis2->selectedParts().testFlags(QCPAxis::spAxis | QCPAxis::spAxisLabel | QCPAxis::spTickLabels)) {
+        } else if (ui->customPlot->yAxis2->selectedParts().testFlag(QCPAxis::spAxis)) {
             qDebug() << "Y2 Axis selected for dragging.";
         } else {
             qDebug() << "No specific axis selected, allowing full range drag.";
         }
-    });*/
+            */
+    });
 
     connect(m_dataManager, &DataManager::serieAdded, this, [this](const int index) {
         QCustomPlot *cp = ui->customPlot;
@@ -108,6 +118,7 @@ MainWindow::MainWindow(QWidget *parent)
             if (index < cp->graphCount()) {
                 //cp->graph(index)->setYAxis(axis == "Y0" ? 0 : 1);
                 cp->graph(index)->setValueAxis(axisVariant.value<QCPAxis*>());
+                m_seriesToUI[index].axis = axisVariant.value<QCPAxis*>();
                 cp->yAxis2->setVisible(true);
                 cp->axisRect()->setRangeDrag(Qt::Vertical | Qt::Horizontal);
                 cp->replot();
@@ -148,16 +159,7 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
     connect(ui->testButton, &QPushButton::clicked, this, [this]() {
-        // Placeholder for test button functionality
-        /*if (ui->tabWidget->isVisible()) {
-            ui->tabWidget->hide();
-            ui->testButton->setText(tr("Show Tabs"));
-            ui->testButton->setStyleSheet("background-color: red; color: black;");
-        } else {
-            ui->tabWidget->show();
-            ui->testButton->setText(tr("Hide Tabs"));
-            ui->testButton->setStyleSheet("background-color: green; color: black;");
-        }*/
+
         if( ui->stackConfiguracion->isVisible() ) {
             ui->stackConfiguracion->hide();
             ui->testButton->setChecked(false);
@@ -212,6 +214,22 @@ void MainWindow::setupPlot()
     //cp->setBufferDevicePixelRatio(1.0);
     cp->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectAxes |
                         QCP::iSelectLegend | QCP::iSelectPlottables);
+
+    cp->xAxis->setSelectedBasePen(QPen(QColor(10,200,100), 2));
+    cp->xAxis->setSelectedTickPen(QPen(QColor(10,200,100), 2));
+    cp->xAxis->setSelectedSubTickPen(QPen(QColor(10,200,100), 2));
+    cp->xAxis->setSelectedTickLabelColor(QColor(10,200,100));
+
+    cp->yAxis->setSelectedBasePen(QPen(QColor(10,200,100), 2));
+    cp->yAxis->setSelectedTickPen(QPen(QColor(10,200,100), 2));
+    cp->yAxis->setSelectedSubTickPen(QPen(QColor(10,200,100), 2));
+    cp->yAxis->setSelectedTickLabelColor(QColor(10,200,100));
+
+    cp->yAxis2->setSelectedBasePen(QPen(QColor(10,200,100), 2));
+    cp->yAxis2->setSelectedTickPen(QPen(QColor(10,200,100), 2));
+    cp->yAxis2->setSelectedSubTickPen(QPen(QColor(10,200,100), 2));
+    cp->yAxis2->setSelectedTickLabelColor(QColor(10,200,100));
+
     cp->xAxis->setRange(-1, 1);    
     cp->setBackground (gui_colors[0]);
     cp->setNotAntialiasedElements (QCP::aeAll);
@@ -240,7 +258,6 @@ void MainWindow::setupPlot()
     cp->yAxis2->setSubTickPen (QPen (gui_colors[2]));
     cp->yAxis2->setTickLabelColor (gui_colors[2]);
     cp->yAxis2->setSelectableParts(QCPAxis::spAxis | QCPAxis::spAxisLabel | QCPAxis::spTickLabels);
-    cp->yAxis2->setLabel("Y2 Axis");
 
 
     cp->legend->setVisible (true);
@@ -307,7 +324,7 @@ void MainWindow::newData(const DataPoint& data, const QString& sourceId)
 
 void MainWindow::signalListItemChanged(QTreeWidgetItem *item, int column)
 {
-    qDebug() << "Signal list item changed:" << item->text(0) << "Column:" << column;
+    //qDebug() << "Signal list item changed:" << item->text(0) << "Column:" << column;
     
     if (item)
     {
@@ -365,4 +382,30 @@ void MainWindow::refreshPlot()
         cp->xAxis->setRange(datacount - xAxisNumElements, datacount + 10);
     }
     cp->replot();
+}
+
+
+void MainWindow::highlightSeriesInAxis(const QCPAxis *axis)
+{
+    QCustomPlot *cp = ui->customPlot;
+
+    for(auto &s: m_seriesToUI) {
+        QColor c = m_dataManager->getSerieColor(s.graphIndex);
+        if (s.axis != axis) {
+            c.setAlpha(100);
+        }
+        cp->graph(s.graphIndex)->setPen(QPen(c,2));
+    }
+
+}
+
+
+void MainWindow::highlightSeriesDisable()
+{
+    QCustomPlot *cp = ui->customPlot;
+    for(auto &s: m_seriesToUI)
+    {
+        QColor c = m_dataManager->getSerieColor(s.graphIndex);
+        cp->graph(s.graphIndex)->setPen(QPen(c, 2));
+    }
 }

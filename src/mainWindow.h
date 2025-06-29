@@ -27,6 +27,9 @@ public:
     /**** PLOT ****/
     void setupPlot();
 
+    void highlightSeriesInAxis(const QCPAxis *axis);
+    void highlightSeriesDisable();
+
 private slots:
     // Slot to update the plot with new data
     void newData(const DataPoint &data, const QString &sourceId);
