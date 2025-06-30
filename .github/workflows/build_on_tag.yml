@@ -1,0 +1,105 @@
+name: Build on Tag (Linux & Windows)
+
+# Cuando se ejecuta este flujo de trabajo
+on:
+  push:
+    tags:
+      - 'v*' # Coincide con tags que empiezan con 'v', como v1.0.0, v2.1-beta
+      - 'release-*' # Coincide con tags que empiezan con 'release-', como release-2025-06
+
+jobs:
+  build_linux:
+    name: Build on Ubuntu (Linux)
+    runs-on: ubuntu-latest # Ejecutar en la última versión de Ubuntu
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4 # Clona tu repositorio
+
+    - name: Set up Qt (Linux)
+      uses: jurplel/install-qt-action@v3 # Acción para instalar Qt
+      with:
+        version: '6.4.2' # ¡Cambia esto a tu versión específica de Qt6 (ej. 6.5.3, 6.6.2)!
+        target: desktop
+        arch: 'gcc_64' # Arquitectura para GCC en Linux
+        install-dir: ${{ runner.temp }}/qt # Directorio temporal para la instalación de Qt
+
+    - name: Create Build Directory (Linux)
+      run: mkdir build
+
+    - name: Configure CMake (Linux)
+      working-directory: ./build # Ejecuta CMake desde el directorio 'build'
+      run: |
+        cmake -DCMAKE_PREFIX_PATH="${{ runner.temp }}/qt/6.4.2/gcc_64" \ # Ruta a la instalación de Qt
+              ..
+
+    - name: Build Project (Linux)
+      working-directory: ./build
+      run: cmake --build . # Compila el proyecto
+
+    - name: Prepare Linux Artifacts
+      run: |
+        # Crea un directorio para tus artefactos
+        mkdir -p dist/linux
+        # Copia el ejecutable. Ajusta el nombre de tu ejecutable si no es ${{ github.event.repository.name }}
+        cp build/${{ github.event.repository.name }} dist/linux/
+        # Si tienes librerías compartidas adicionales (ej. plugins, datos), cópialas aquí
+        # find build -name "*.so" -exec cp {} dist/linux/ \;
+
+    - name: Upload Linux Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ github.event.repository.name }}-linux-${{ github.ref_name }} # Nombre del artefacto
+        path: dist/linux/ # Ruta a los archivos a subir
+
+  build_windows:
+    name: Build on Windows
+    runs-on: windows-latest # Ejecutar en la última versión de Windows
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Qt (Windows)
+      uses: jurplel/install-qt-action@v3
+      with:
+        version: '6.4.2' # ¡Cambia esto a tu versión específica de Qt6!
+        target: desktop
+        arch: 'win64_msvc2019_64' # O 'win64_mingw' si usas MinGW
+        install-dir: ${{ runner.temp }}/qt
+
+    - name: Create Build Directory (Windows)
+      run: mkdir build
+
+    - name: Configure CMake (Windows)
+      working-directory: ./build
+      run: |
+        cmake -DCMAKE_BUILD_TYPE=Release `
+              -DQCUSTOMPLOT_USE_OPENGL=TRUE ` # Observa el ` para saltos de línea en PowerShell
+              -DCMAKE_PREFIX_PATH="${{ runner.temp }}/qt/6.4.2/msvc2019_64" ` # O 'mingw' si usas MinGW
+              ..
+      shell: powershell # Usa PowerShell para ejecutar los comandos
+
+    - name: Build Project (Windows)
+      working-directory: ./build
+      run: cmake --build . --config Release
+
+    - name: Deploy Qt Libraries (Windows)
+      # Usa windeployqt para copiar las DLLs de Qt necesarias junto al ejecutable
+      run: |
+        cd build/Release # O 'build' si no usas configuraciones por directorio
+        "${{ runner.temp }}/qt/6.4.2/msvc2019_64/bin/labPlotter.exe" "${{ github.event.repository.name }}.exe"
+      shell: powershell
+
+    - name: Prepare Windows Artifacts
+      run: |
+        mkdir -p dist/windows
+        # Copia el ejecutable y las DLLs generadas por windeployqt
+        Copy-Item -Path "build/Release/*" -Destination "dist/windows/" -Recurse -Force
+      shell: powershell
+
+    - name: Upload Windows Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ github.event.repository.name }}-windows-${{ github.ref_name }}
+        path: dist/windows/
