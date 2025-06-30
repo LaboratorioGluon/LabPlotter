@@ -5000,6 +5000,9 @@ public:
   virtual void update(UpdatePhase phase) Q_DECL_OVERRIDE;
   virtual QList<QCPLayoutElement*> elements(bool recursive) const Q_DECL_OVERRIDE;
 
+signals:
+  void axisDragged();
+
 protected:
   // property members:
   QBrush mBackgroundBrush;

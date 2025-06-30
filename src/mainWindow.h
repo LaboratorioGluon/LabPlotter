@@ -39,6 +39,7 @@ private slots:
     void signalListItemChanged(QTreeWidgetItem *item, int column);
 
     void mousePress(QMouseEvent *event);
+    void mouseMove(QMouseEvent *event);
     void mouseWheel(QWheelEvent *event);
 
 private:
@@ -63,6 +64,7 @@ private:
     int datacount;
     int xAxisNumElements = 500;
     bool isPlotLive = true;
+    QCPAxis *selectedAxis = nullptr;
 
     QColor m_plotColors[14] =
         {

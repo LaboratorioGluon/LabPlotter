@@ -2,7 +2,6 @@
 #include "DataManager.h"
 #include <QDebug>
 
-// Constructor ya definido en .h si es solo un initializer list
 
 int DataManager::addSerie(const QString &name, const QColor &initialColor, bool initialVisible)
 {
@@ -19,13 +18,6 @@ int DataManager::addSerie(const QString &name, const QColor &initialColor, bool 
     return index;
 }
 
-/*
-void DataManager::removeSerie(const int index)
-{
-   m_seriesInfo.removeAt(index);
-   emit serieRemoved(index);
-   qDebug() << "Serie removed at index:" << index;
-}*/
 
 void DataManager::addDataToSerie(const int index, double x, double y)
 {

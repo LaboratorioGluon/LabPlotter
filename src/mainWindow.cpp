@@ -3,6 +3,7 @@
 #include "widgets/connectionPanel.h"
 #include "dataInterface/SerialPortSource.h"
 #include "dataInterface/CharSeparatedParser.h"
+#include "dataInterface/FileSource.h"
 #include <QElapsedTimer>
 
 MainWindow::MainWindow(QWidget *parent)
@@ -19,6 +20,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     QPushButton*  buttonExtra = new QPushButton("Extra Button", this);
 
+    FileSource fs("File1","test.txt", m_dataManager);
+    fs.start();
 
     setupPlot();
 
@@ -34,23 +37,42 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(ui->signalList, &QTreeWidget::itemChanged, this, &MainWindow::signalListItemChanged);
 
+    connect(ui->customPlot->axisRect(), &QCPAxisRect::axisDragged, this , [this]()
+    {
+        if ( !selectedAxis)
+        {
+            isPlotLive = false;
+            ui->toolGoLive->setEnabled(true);
+        }
+    });
+
+    connect(ui->customPlot, &QCustomPlot::axisClick, this, [this](QCPAxis *axis, QCPAxis::SelectablePart part, QMouseEvent *event) {
+        if(axis)
+        {
+            axis->setSelectedParts( QCPAxis::spAxis | QCPAxis::spTickLabels | QCPAxis::spTickLabels);
+        }
+    });
+
     connect(ui->customPlot, &QCustomPlot::selectionChangedByUser, this, [this]() {
         if (ui->customPlot->xAxis->selectedParts().testFlag(QCPAxis::spAxis)){
-            ui->customPlot->axisRect()->setRangeDrag(ui->customPlot->xAxis->orientation());    
+            ui->customPlot->axisRect()->setRangeDrag(ui->customPlot->xAxis->orientation());
             ui->customPlot->axisRect()->setRangeDragAxes(ui->customPlot->xAxis, ui->customPlot->yAxis);
+            selectedAxis = ui->customPlot->xAxis;
         }else if (ui->customPlot->yAxis->selectedParts().testFlag(QCPAxis::spAxis)){
             ui->customPlot->axisRect()->setRangeDrag(ui->customPlot->yAxis->orientation());
             ui->customPlot->axisRect()->setRangeDragAxes(ui->customPlot->xAxis, ui->customPlot->yAxis);
             highlightSeriesInAxis(ui->customPlot->yAxis);
+            selectedAxis = ui->customPlot->yAxis;
         }else if (ui->customPlot->yAxis2->selectedParts().testAnyFlags(QCPAxis::spAxis | QCPAxis::spAxisLabel | QCPAxis::spTickLabels)){
             ui->customPlot->axisRect()->setRangeDrag(ui->customPlot->yAxis2->orientation());
             ui->customPlot->axisRect()->setRangeDragAxes(ui->customPlot->xAxis, ui->customPlot->yAxis2);
             highlightSeriesInAxis(ui->customPlot->yAxis2);
+            selectedAxis = ui->customPlot->yAxis2;
         }else{
             ui->customPlot->axisRect()->setRangeDrag(Qt::Vertical | Qt::Horizontal);
             ui->customPlot->axisRect()->setRangeDragAxes(ui->customPlot->xAxis, ui->customPlot->yAxis);
-            isPlotLive = false;
-            ui->toolGoLive->setEnabled(true);
+            qDebug() << "Nada seleccionado";
+            selectedAxis = nullptr;
             highlightSeriesDisable();
         }
     });
@@ -86,18 +108,13 @@ MainWindow::MainWindow(QWidget *parent)
         axisEdit->addItem("Y1", QVariant::fromValue(cp->yAxis2));
         axisLayout->addWidget(axisEdit);
         
-
         QWidget *axisline = new QWidget(ui->signalList);
-        //axisline->setFixedHeight(1);
         axisline->setLayout(axisLayout);
 
         ui->signalList->setItemWidget(axisItem, 0, axisline);
-
-        //item->insertChild(0, new QLineEdit(new QString("Edit"), this));
         m_seriesToUI.insert(index, {graphIndex, item, cp->yAxis});
 
         connect(axisEdit, &QComboBox::currentIndexChanged, this, [this, index, axisEdit](const int currentIndex) {
-            //m_dataManager->setSerieAxis(index, axis);
             QVariant axisVariant = axisEdit->itemData(currentIndex);
             QCustomPlot *cp = ui->customPlot;
             if (index < cp->graphCount()) {
@@ -270,8 +287,21 @@ void MainWindow::mousePress(QMouseEvent* event)
         ui->customPlot->xAxis->setSelectedParts(QCPAxis::spNone);
         ui->customPlot->yAxis->setSelectedParts(QCPAxis::spNone);
         ui->customPlot->yAxis2->setSelectedParts(QCPAxis::spNone);
+        ui->customPlot->axisRect()->setRangeDrag(Qt::Vertical | Qt::Horizontal);
+        ui->customPlot->axisRect()->setRangeDragAxes(ui->customPlot->xAxis, ui->customPlot->yAxis);
         highlightSeriesDisable();
+        selectedAxis = nullptr;
     }
+    /*else if ( event->button() == Qt::LeftButton)
+    {
+        isPlotLive = false;
+        ui->toolGoLive->setEnabled(true);
+    }*/
+}
+
+void MainWindow::mouseMove(QMouseEvent *event)
+{
+    //event->DragMove
 }
 
 void MainWindow::mouseWheel(QWheelEvent* event)

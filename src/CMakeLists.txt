@@ -7,6 +7,7 @@ mainWindow.cpp
 DataManager.cpp
 SourceManager.cpp
 dataInterface/SerialPortSource.cpp
+dataInterface/FileSource.cpp
 dataInterface/CharSeparatedParser.cpp
 dataInterface/IDataParser.cpp
 widgets/connectionPanel.cpp
@@ -22,6 +23,7 @@ dataInterface/IDataSource.h
 dataInterface/DataPoint.h
 dataInterface/CharSeparatedParser.h
 dataInterface/SerialPortSource.h
+dataInterface/FileSource.h
 widgets/connectionPanel.h
 widgets/serialPortConfig.h
 )
