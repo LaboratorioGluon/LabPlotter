@@ -34,7 +34,7 @@ jobs:
     - name: Configure CMake (Linux)
       working-directory: ./build # Ejecuta CMake desde el directorio 'build'
       run: |
-        cmake -DCMAKE_PREFIX_PATH="${{ runner.temp }}/qt/6.4.2/gcc_64" \ # Ruta a la instalación de Qt
+        cmake -DCMAKE_PREFIX_PATH="${{ runner.temp }}/qt/6.4.2/gcc_64" \
               ..
 
     - name: Build Project (Linux)
@@ -43,12 +43,8 @@ jobs:
 
     - name: Prepare Linux Artifacts
       run: |
-        # Crea un directorio para tus artefactos
         mkdir -p dist/linux
-        # Copia el ejecutable. Ajusta el nombre de tu ejecutable si no es ${{ github.event.repository.name }}
         cp build/${{ github.event.repository.name }} dist/linux/
-        # Si tienes librerías compartidas adicionales (ej. plugins, datos), cópialas aquí
-        # find build -name "*.so" -exec cp {} dist/linux/ \;
 
     - name: Upload Linux Artifacts
       uses: actions/upload-artifact@v4
@@ -78,9 +74,8 @@ jobs:
     - name: Configure CMake (Windows)
       working-directory: ./build
       run: |
-        cmake -DCMAKE_BUILD_TYPE=Release `
-              -DQCUSTOMPLOT_USE_OPENGL=TRUE ` # Observa el ` para saltos de línea en PowerShell
-              -DCMAKE_PREFIX_PATH="${{ runner.temp }}/qt/6.4.2/msvc2019_64" ` # O 'mingw' si usas MinGW
+        cmake -DCMAKE_BUILD_TYPE=Release -DQCUSTOMPLOT_USE_OPENGL=TRUE `
+              -DCMAKE_PREFIX_PATH="${{ runner.temp }}/qt/6.4.2/msvc2019_64" `
               ..
       shell: powershell # Usa PowerShell para ejecutar los comandos
 
@@ -91,14 +86,13 @@ jobs:
     - name: Deploy Qt Libraries (Windows)
       # Usa windeployqt para copiar las DLLs de Qt necesarias junto al ejecutable
       run: |
-        cd build/Release # O 'build' si no usas configuraciones por directorio
+        cd build/Release 
         "${{ runner.temp }}/qt/6.4.2/msvc2019_64/bin/labPlotter.exe" "${{ github.event.repository.name }}.exe"
       shell: powershell
 
     - name: Prepare Windows Artifacts
       run: |
         mkdir -p dist/windows
-        # Copia el ejecutable y las DLLs generadas por windeployqt
         Copy-Item -Path "build/Release/*" -Destination "dist/windows/" -Recurse -Force
       shell: powershell
 
