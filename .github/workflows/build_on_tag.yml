@@ -6,7 +6,8 @@ on:
     tags:
       - 'v*' # Coincide con tags que empiezan con 'v', como v1.0.0, v2.1-beta
       - 'release-*' # Coincide con tags que empiezan con 'release-', como release-2025-06
-
+  workflow-dispatch:
+    
 jobs:
   build_linux:
     name: Build on Ubuntu (Linux)
