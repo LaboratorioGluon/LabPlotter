@@ -45,7 +45,7 @@ jobs:
     - name: Prepare Linux Artifacts
       run: |
         mkdir -p dist/linux
-        cp build/${{ github.event.repository.name }} dist/linux/
+        cp build/src/${{ github.event.repository.name }} dist/linux/
 
     - name: Upload Linux Artifacts
       uses: actions/upload-artifact@v4
@@ -89,7 +89,7 @@ jobs:
       # Usa windeployqt para copiar las DLLs de Qt necesarias junto al ejecutable
       run: |
         cd build/Release 
-        "${{ runner.temp }}/qt/6.4.2/msvc2019_64/bin/labPlotter.exe" "${{ github.event.repository.name }}.exe"
+        "${{ runner.temp }}/qt/6.4.2/msvc2019_64/bin/windeployqt.exe" "${{ github.event.repository.name }}.exe"
       shell: powershell
 
     - name: Prepare Windows Artifacts
