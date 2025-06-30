@@ -17,6 +17,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4 # Clona tu repositorio
 
+
     - name: Set up Qt (Linux)
       uses: jurplel/install-qt-action@v3 # Acción para instalar Qt
       with:
