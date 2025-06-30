@@ -91,7 +91,7 @@ jobs:
         cd build/Release 
         $windeployqtPath = "${{ runner.temp }}/qt/6.4.2/msvc2019_64/bin/windeployqt.exe"
         $appName = "${{ github.event.repository.name }}.exe"
-        & $windeployqtPath $appName
+        & windeployqt $appName
       shell: powershell
 
     - name: Prepare Windows Artifacts
