@@ -89,7 +89,9 @@ jobs:
       # Usa windeployqt para copiar las DLLs de Qt necesarias junto al ejecutable
       run: |
         cd build/Release 
-        "${{ runner.temp }}/qt/6.4.2/msvc2019_64/bin/windeployqt.exe" "${{ github.event.repository.name }}.exe"
+        $windeployqtPath = "${{ runner.temp }}/qt/6.4.2/msvc2019_64/bin/windeployqt.exe"
+        $appName = "${{ github.event.repository.name }}.exe"
+        & $windeployqtPath $appName
       shell: powershell
 
     - name: Prepare Windows Artifacts
