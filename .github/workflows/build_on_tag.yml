@@ -27,6 +27,7 @@ jobs:
         target: desktop
         arch: 'gcc_64' # Arquitectura para GCC en Linux
         install-dir: ${{ runner.temp }}/qt # Directorio temporal para la instalación de Qt
+        tools: 'qtcharts qtserialport'
 
     - name: Create Build Directory (Linux)
       run: mkdir build
@@ -67,6 +68,7 @@ jobs:
         target: desktop
         arch: 'win64_msvc2019_64' # O 'win64_mingw' si usas MinGW
         install-dir: ${{ runner.temp }}/qt
+        tools: 'qtcharts qtserialport'
 
     - name: Create Build Directory (Windows)
       run: mkdir build
