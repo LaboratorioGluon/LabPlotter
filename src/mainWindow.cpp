@@ -11,12 +11,41 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
     , m_sourceManager(new SourceManager(this)) // Inicializa el SourceManager
     , m_dataManager(new DataManager(this)) // Inicializa el DataManager
+    , m_axisModel(new QStandardItemModel(this))
 {
     datacount = 0; // Initialize data count
     ui->setupUi(this);
 
     m_dataPoints.clear();
     m_seriesToUI.clear();
+
+    
+/*
+    QStandardItem *ax1 = new QStandardItem("yAxis1");
+    ax1->setCheckable(true);
+    ax1->setCheckState(Qt::Checked);
+    m_axisModel->appendRow(ax1);
+
+    ui->axisList->setModel(m_axisModel);*/
+
+    ui->axisList->insertItem(ui->axisList->count(), QString("Y1"));
+    ui->axisList->item(ui->axisList->count()-1)->setCheckState(Qt::Checked);
+    ui->axisList->item(ui->axisList->count()-1)->setData(Qt::UserRole, QVariant::fromValue(ui->customPlot->yAxis));
+
+    ui->axisList->insertItem(ui->axisList->count(), QString("Y2"));
+    ui->axisList->item(ui->axisList->count()-1)->setCheckState(Qt::Unchecked);
+    ui->axisList->item(ui->axisList->count()-1)->setData(Qt::UserRole, QVariant::fromValue(ui->customPlot->yAxis2));
+
+    connect(ui->axisList, &QListWidget::itemChanged, this, [this](QListWidgetItem *item){ 
+        QCPAxis *ax = item->data(Qt::UserRole).value<QCPAxis*>();
+        ax->setVisible(item->checkState() == Qt::Checked);
+        for( auto * g: ax->graphs())
+        {
+            g->setVisible(item->checkState() == Qt::Checked);
+        }
+    });
+    
+
 
     QPushButton*  buttonExtra = new QPushButton("Extra Button", this);
 
@@ -104,8 +133,14 @@ MainWindow::MainWindow(QWidget *parent)
         axisLayout->addWidget(axisLabel);
 
         QComboBox *axisEdit = new QComboBox(ui->signalList);
-        axisEdit->addItem("Y0", QVariant::fromValue(cp->yAxis));
-        axisEdit->addItem("Y1", QVariant::fromValue(cp->yAxis2));
+        
+        /*axisEdit->addItem("Y0", QVariant::fromValue(cp->yAxis));
+        axisEdit->addItem("Y1", QVariant::fromValue(cp->yAxis2));*/
+        for( int i = 0; i < ui->axisList->count(); i++)
+        {
+            QListWidgetItem * item = ui->axisList->item(i);
+            axisEdit->addItem(item->text(), item->data(Qt::UserRole));
+        }
         axisLayout->addWidget(axisEdit);
         
         QWidget *axisline = new QWidget(ui->signalList);
@@ -121,7 +156,8 @@ MainWindow::MainWindow(QWidget *parent)
                 //cp->graph(index)->setYAxis(axis == "Y0" ? 0 : 1);
                 cp->graph(index)->setValueAxis(axisVariant.value<QCPAxis*>());
                 m_seriesToUI[index].axis = axisVariant.value<QCPAxis*>();
-                cp->yAxis2->setVisible(true);
+                axisVariant.value<QCPAxis*>()->setVisible(true);
+                ui->axisList->item(currentIndex)->setCheckState(Qt::Checked);
                 cp->axisRect()->setRangeDrag(Qt::Vertical | Qt::Horizontal);
                 cp->replot();
             }
@@ -161,15 +197,12 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
     connect(ui->testButton, &QPushButton::clicked, this, [this]() {
-
         if( ui->stackConfiguracion->isVisible() ) {
             ui->stackConfiguracion->hide();
             ui->testButton->setChecked(false);
-            //ui->testButton->setStyleSheet("background-color: green; color: black;");
         } else {
             ui->stackConfiguracion->show();
             ui->testButton->setChecked(true);
-            //ui->testButton->setStyleSheet("background-color: red; color: black;");
         }
     });
     

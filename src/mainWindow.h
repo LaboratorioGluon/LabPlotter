@@ -30,6 +30,8 @@ public:
     void highlightSeriesInAxis(const QCPAxis *axis);
     void highlightSeriesDisable();
 
+    QStandardItemModel *m_axisModel;
+
 private slots:
     // Slot to update the plot with new data
     void newData(const DataPoint &data, const QString &sourceId);
@@ -59,6 +61,8 @@ private:
     };
 
     QMap<int, SerieToUI> m_seriesToUI;
+
+    
 
     // plot data
     int datacount;
